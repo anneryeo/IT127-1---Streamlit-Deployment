@@ -33,15 +33,20 @@ def main():
             st.stop()
         
         original_target = data['type'].copy()
+        st.write(f"Original target values: {original_target.unique()}")
         
-        label = LabelEncoder()
         for col in data.columns:
-            data[col] = label.fit_transform(data[col])
+            le = LabelEncoder()
+            data[col] = le.fit_transform(data[col])
         
         st.write(f"Dataset shape: {data.shape}")
         st.write(f"Number of unique classes in target: {len(data['type'].unique())}")
-        st.write(f"Original target values: {original_target.unique()}")
         st.write(f"Encoded target values: {data['type'].unique()}")
+        
+        if len(data['type'].unique()) == 2:
+            st.success("Binary classification detected.")
+        else:
+            st.warning(f"Multi-class classification detected with {len(data['type'].unique())} classes")
         
         return data
 
@@ -125,9 +130,14 @@ def main():
     
     # Get the actual unique classes in the target variable
     unique_classes = sorted(df['type'].unique())
-    class_names = [f"Class {i}" for i in unique_classes]
     
-    st.write(f"Working with {len(unique_classes)} classes: {unique_classes}")
+    # Create meaningful class names for mushroom dataset
+    if len(unique_classes) == 2:
+        class_names = ["Edible", "Poisonous"]
+        st.write(f"✅ Binary classification: {class_names[0]} (Class {unique_classes[0]}) vs {class_names[1]} (Class {unique_classes[1]})")
+    else:
+        class_names = [f"Class {i}" for i in unique_classes]
+        st.write(f"Working with {len(unique_classes)} classes: {unique_classes}")
 
     if st.sidebar.checkbox("Show raw data", False):
         st.subheader("Mushroom Dataset (Classification)")
