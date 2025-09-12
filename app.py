@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import numpy as np 
+import matplotlib.pyplot as plt
+import seaborn as sns
 from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
@@ -24,16 +26,23 @@ def main():
     st.sidebar.markdown("Are your mushrooms edible or poisonous? 🔬")
 
     def load_data():
-        # For demo purposes, create sample data if mushrooms.csv doesn't exist
         try:
             data = pd.read_csv("mushrooms.csv")
         except FileNotFoundError:
             st.error("mushrooms.csv file not found. Please upload the dataset.")
             st.stop()
         
+        original_target = data['type'].copy()
+        
         label = LabelEncoder()
         for col in data.columns:
             data[col] = label.fit_transform(data[col])
+        
+        st.write(f"Dataset shape: {data.shape}")
+        st.write(f"Number of unique classes in target: {len(data['type'].unique())}")
+        st.write(f"Original target values: {original_target.unique()}")
+        st.write(f"Encoded target values: {data['type'].unique()}")
+        
         return data
 
     @st.cache_data
@@ -48,25 +57,77 @@ def main():
             st.subheader("Confusion Matrix")
             y_pred = model.predict(x_test)
             cm = confusion_matrix(y_test, y_pred)
-            st.write("Confusion Matrix:")
-            st.write(pd.DataFrame(cm, index=class_names, columns=class_names))
+            
+            # Create confusion matrix heatmap
+            fig, ax = plt.subplots(figsize=(8, 6))
+            unique_classes = sorted(list(set(y_test) | set(y_pred)))
+            class_labels = [f"Class {i}" for i in unique_classes]
+            
+            sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
+                       xticklabels=class_labels, yticklabels=class_labels, ax=ax)
+            ax.set_xlabel('Predicted')
+            ax.set_ylabel('Actual')
+            ax.set_title('Confusion Matrix')
+            st.pyplot(fig)
+            plt.close()
         
         if "ROC Curve" in metrics_list:
             st.subheader("ROC Curve")
-            y_prob = model.predict_proba(x_test)[:, 1]
-            fpr, tpr, _ = roc_curve(y_test, y_prob)
-            roc_auc = auc(fpr, tpr)
-            st.write(f"AUC Score: {roc_auc:.3f}")
+            # Check if this is a binary classification problem
+            if len(set(y_test)) == 2:
+                y_prob = model.predict_proba(x_test)[:, 1]
+                fpr, tpr, _ = roc_curve(y_test, y_prob)
+                roc_auc = auc(fpr, tpr)
+                
+                # Create ROC curve plot
+                fig, ax = plt.subplots(figsize=(8, 6))
+                ax.plot(fpr, tpr, color='darkorange', lw=2, 
+                       label=f'ROC curve (AUC = {roc_auc:.3f})')
+                ax.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--', 
+                       label='Random classifier')
+                ax.set_xlim((0.0, 1.0))
+                ax.set_ylim((0.0, 1.05))
+                ax.set_xlabel('False Positive Rate')
+                ax.set_ylabel('True Positive Rate')
+                ax.set_title('Receiver Operating Characteristic (ROC) Curve')
+                ax.legend(loc="lower right")
+                ax.grid(True, alpha=0.3)
+                st.pyplot(fig)
+                plt.close()
+            else:
+                st.write("ROC Curve is only available for binary classification")
         
         if "Precision-Recall Curve" in metrics_list:
             st.subheader("Precision-Recall Curve")
-            y_prob = model.predict_proba(x_test)[:, 1]
-            precision, recall, _ = precision_recall_curve(y_test, y_prob)
-            st.write("Precision-Recall curve data calculated")
+            # Check if this is a binary classification problem
+            if len(set(y_test)) == 2:
+                y_prob = model.predict_proba(x_test)[:, 1]
+                precision, recall, _ = precision_recall_curve(y_test, y_prob)
+                
+                # Create Precision-Recall curve plot
+                fig, ax = plt.subplots(figsize=(8, 6))
+                ax.plot(recall, precision, color='blue', lw=2, 
+                       label='Precision-Recall curve')
+                ax.set_xlabel('Recall')
+                ax.set_ylabel('Precision')
+                ax.set_title('Precision-Recall Curve')
+                ax.legend(loc="lower left")
+                ax.grid(True, alpha=0.3)
+                ax.set_xlim((0.0, 1.0))
+                ax.set_ylim((0.0, 1.05))
+                st.pyplot(fig)
+                plt.close()
+            else:
+                st.write("Precision-Recall Curve is only available for binary classification")
 
     df = load_data()
     x_train, x_test, y_train, y_test = split(df)
-    class_names = ["edible", "poisonous"]
+    
+    # Get the actual unique classes in the target variable
+    unique_classes = sorted(df['type'].unique())
+    class_names = [f"Class {i}" for i in unique_classes]
+    
+    st.write(f"Working with {len(unique_classes)} classes: {unique_classes}")
 
     if st.sidebar.checkbox("Show raw data", False):
         st.subheader("Mushroom Dataset (Classification)")
