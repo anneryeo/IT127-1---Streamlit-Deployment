@@ -13,8 +13,8 @@ venv/
 ENV/
 env/
 
-# Data files
-*.csv
+# Data files (excluding mushrooms.csv which is needed for deployment)
+# *.csv
 *.tsv
 *.xls
 *.xlsx
